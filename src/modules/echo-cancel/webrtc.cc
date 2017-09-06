@@ -55,6 +55,7 @@ PA_C_DECL_END
 #define DEFAULT_AGC_START_VOLUME 85
 #define DEFAULT_BEAMFORMING false
 #define DEFAULT_TRACE false
+#define DEFAULT_ECHO_SUPPRESSION_LEVEL 1
 
 #define WEBRTC_AGC_MAX_VOLUME 255
 
@@ -76,6 +77,7 @@ static const char* const valid_modargs[] = {
     "mic_geometry", /* documented in parse_mic_geometry() */
     "target_direction", /* documented in parse_mic_geometry() */
     "trace",
+    "echo_suppression_level",
     NULL
 };
 
@@ -239,7 +241,7 @@ bool pa_webrtc_ec_init(pa_core *c, pa_echo_canceller *ec,
     webrtc::ProcessingConfig pconfig;
     webrtc::Config config;
     bool hpf, ns, agc, dgc, mobile, cn, vad, ext_filter, intelligibility, experimental_agc, beamforming;
-    int rm = -1, i;
+    int rm = -1, i, echo_suppression_level;
     uint32_t agc_start_volume;
     pa_modargs *ma;
     bool trace = false;
@@ -287,6 +289,12 @@ bool pa_webrtc_ec_init(pa_core *c, pa_echo_canceller *ec,
     ec->params.drift_compensation = DEFAULT_DRIFT_COMPENSATION;
     if (pa_modargs_get_value_boolean(ma, "drift_compensation", &ec->params.drift_compensation) < 0) {
         pa_log("Failed to parse drift_compensation value");
+        goto fail;
+    }
+
+    echo_suppression_level = DEFAULT_ECHO_SUPPRESSION_LEVEL;
+    if (pa_modargs_get_value_u32(ma, "echo_suppression_level", &echo_suppression_level))) < 0) {
+        pa_log("Failed to parse echo_suppression_level value");
         goto fail;
     }
 
@@ -439,6 +447,7 @@ bool pa_webrtc_ec_init(pa_core *c, pa_echo_canceller *ec,
     if (hpf)
         apm->high_pass_filter()->Enable(true);
 
+    apm->echo_cancellation()->set_suppression_level(echo_suppression_level);
     if (!mobile) {
         apm->echo_cancellation()->enable_drift_compensation(ec->params.drift_compensation);
         apm->echo_cancellation()->Enable(true);
